@@ -1,3 +1,4 @@
+
 # -*- coding: utf-8 -*-
 
 import os
@@ -8,6 +9,7 @@ import google.oauth2.credentials
 import google_auth_oauthlib.flow
 import googleapiclient.discovery
 from googleapiclient.http import MediaFileUpload
+from PIL import Image, ImageFont, ImageDraw
 
 CLIENT_SECRETS_FILE = "/Users/pb/projects/pyproj/client_secrets.json"
 SCOPES = "https://www.googleapis.com/auth/youtube.force-ssl https://www.googleapis.com/auth/youtube.upload https://www.googleapis.com/auth/youtube"
@@ -16,6 +18,31 @@ API_VERSION = 'v3'
 
 app = flask.Flask(__name__)
 app.secret_key = b'_5#'
+
+def create_thumbnail(videoId, views):
+  img = Image.new('RGB', (1280,720), (0,0,0))
+  font = ImageFont.truetype('Rubik-Medium.ttf', 100)
+  text = f'{views} views' 
+  edit_image = ImageDraw.Draw(img)
+  edit_image.text((15,15), text, (237, 230, 211), font = font)
+  img.save(f'{videoId}.png')
+
+def upload_thumbnail(credentials):
+
+  youtube = googleapiclient.discovery.build(
+      API_SERVICE_NAME, API_VERSION, credentials=credentials)
+  channel = youtube.channels().list(mine = True, part='contentDetails').execute()
+  channelId = channel['items'][0]['id']
+  popular = youtube.search().list(part = 'snippet', channelId = channelId, maxResults = 5, order = 'viewCount').execute()
+  for item in popular['items'] :
+    if item['id']['kind'] == 'youtube#channel':
+      continue
+    videoId = item['id']['videoId']
+    video = youtube.videos().list(id = videoId, part = 'statistics').execute()
+    views = video['items'][0]['statistics']['viewCount']
+    create_thumbnail(videoId, views)
+    request = youtube.thumbnails().set(videoId = videoId, media_body = MediaFileUpload(f'{videoId}.png')).execute()
+    print(views)
 
 
 @app.route('/')
@@ -32,16 +59,12 @@ def test_api_request():
   credentials = google.oauth2.credentials.Credentials(
       **flask.session['credentials'])
 
-  youtube = googleapiclient.discovery.build(
-      API_SERVICE_NAME, API_VERSION, credentials=credentials)
-
-  #  channel = youtube.channels().list(mine = True, part='contentDetails').execute()
-  videos = youtube.playlistItems().list(playlistId = 'UUlZQy7dDyNzQrk3TapGOVTg', part='id', maxResults = 50).execute()
-  request = youtube.thumbnails().set(videoId = 'VVVsWlF5N2REeU56UXJrM1RhcEdPVlRnLlZwVEtoWldqTnJv', media_body = MediaFileUpload('/Users/pb/Downloads/11.jpeg')).execute()
+  upload_thumbnail(credentials)
 
   flask.session['credentials'] = credentials_to_dict(credentials)
-
-  return flask.jsonify(**videos)
+  return (
+    '<h2> Uploaded the thumbnails for the 10 most viewed videos</h2>'
+  )
 
 
 @app.route('/authorize')
@@ -141,10 +164,7 @@ def print_index_table():
           '    page, you should see an <code>invalid_grant</code> error.' +
           '</td></tr>' +
           '<tr><td><a href="/clear">Clear Flask session credentials</a></td>' +
-          '<td>Clear the access token currently stored in the user session. ' +
-          '    After clearing the token, if you <a href="/test">test the ' +
-          '    API request</a> again, you should go back to the auth flow.' +
-          '</td></tr></table>')
+          '</tr></table>')
 
 
 if __name__ == '__main__':
