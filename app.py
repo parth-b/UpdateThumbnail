@@ -1,4 +1,3 @@
-
 # -*- coding: utf-8 -*-
 
 import os
@@ -7,46 +6,17 @@ import requests
 
 import google.oauth2.credentials
 import google_auth_oauthlib.flow
-import googleapiclient.discovery
-from googleapiclient.http import MediaFileUpload
-from PIL import Image, ImageFont, ImageDraw
+from uploadThumbnial import upload_thumbnail
 
 CLIENT_SECRETS_FILE = "/Users/pb/projects/pyproj/client_secrets.json"
 SCOPES = "https://www.googleapis.com/auth/youtube.force-ssl https://www.googleapis.com/auth/youtube.upload https://www.googleapis.com/auth/youtube"
-API_SERVICE_NAME = 'youtube'
-API_VERSION = 'v3'
 
 app = flask.Flask(__name__)
 app.secret_key = b'_5#'
 
-def create_thumbnail(videoId, views):
-  img = Image.new('RGB', (1280,720), (0,0,0))
-  font = ImageFont.truetype('Rubik-Medium.ttf', 100)
-  text = f'{views} views' 
-  edit_image = ImageDraw.Draw(img)
-  edit_image.text((15,15), text, (237, 230, 211), font = font)
-  img.save(f'{videoId}.png')
-
-def upload_thumbnail(credentials):
-
-  youtube = googleapiclient.discovery.build(
-      API_SERVICE_NAME, API_VERSION, credentials=credentials)
-  channel = youtube.channels().list(mine = True, part='contentDetails').execute()
-  channelId = channel['items'][0]['id']
-  popular = youtube.search().list(part = 'snippet', channelId = channelId, maxResults = 5, order = 'viewCount').execute()
-  for item in popular['items'] :
-    if item['id']['kind'] == 'youtube#channel':
-      continue
-    videoId = item['id']['videoId']
-    video = youtube.videos().list(id = videoId, part = 'statistics').execute()
-    views = video['items'][0]['statistics']['viewCount']
-    create_thumbnail(videoId, views)
-    request = youtube.thumbnails().set(videoId = videoId, media_body = MediaFileUpload(f'{videoId}.png')).execute()
-    print(views)
-
-
 @app.route('/')
 def index():
+  print(__name__)
   return print_index_table()
 
 
@@ -55,7 +25,6 @@ def test_api_request():
   if 'credentials' not in flask.session:
     return flask.redirect('authorize')
 
-  # Load credentials from the session.
   credentials = google.oauth2.credentials.Credentials(
       **flask.session['credentials'])
 
@@ -73,20 +42,11 @@ def authorize():
   flow = google_auth_oauthlib.flow.Flow.from_client_secrets_file(
       CLIENT_SECRETS_FILE, scopes=SCOPES)
 
-  # The URI created here must exactly match one of the authorized redirect URIs
-  # for the OAuth 2.0 client, which you configured in the API Console. If this
-  # value doesn't match an authorized URI, you will get a 'redirect_uri_mismatch'
-  # error.
   flow.redirect_uri = flask.url_for('oauth2callback', _external=True)
 
   authorization_url, state = flow.authorization_url(
-      # Enable offline access so that you can refresh an access token without
-      # re-prompting the user for permission. Recommended for web server apps.
       access_type='offline',
-      # Enable incremental authorization. Recommended as a best practice.
       include_granted_scopes='true')
-
-  # Store the state so the callback can verify the auth server response.
   flask.session['state'] = state
 
   return flask.redirect(authorization_url)
@@ -94,15 +54,12 @@ def authorize():
 
 @app.route('/oauth2callback')
 def oauth2callback():
-  # Specify the state when creating the flow in the callback so that it can
-  # verified in the authorization server response.
   state = flask.session['state']
 
   flow = google_auth_oauthlib.flow.Flow.from_client_secrets_file(
       CLIENT_SECRETS_FILE, scopes=SCOPES, state=state)
   flow.redirect_uri = flask.url_for('oauth2callback', _external=True)
 
-  # Use the authorization server's response to fetch the OAuth 2.0 tokens.
   authorization_response = flask.request.url
   flow.fetch_token(authorization_response=authorization_response)
 
@@ -159,10 +116,7 @@ def print_index_table():
           '    credentials, you still might not be prompted to reauthorize ' +
           '    the application.</td></tr>' +
           '<tr><td><a href="/revoke">Revoke current credentials</a></td>' +
-          '<td>Revoke the access token associated with the current user ' +
-          '    session. After revoking credentials, if you go to the test ' +
-          '    page, you should see an <code>invalid_grant</code> error.' +
-          '</td></tr>' +
+          '</tr>' +
           '<tr><td><a href="/clear">Clear Flask session credentials</a></td>' +
           '</tr></table>')
 
