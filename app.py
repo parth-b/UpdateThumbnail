@@ -13,7 +13,7 @@ SCOPES = "https://www.googleapis.com/auth/youtube.force-ssl https://www.googleap
 
 app = flask.Flask(__name__)
 app.secret_key = b'_5#'
-app.config["SERVER_NAME"] = "parth-bansal.com:5000"
+#app.config["SERVER_NAME"] = "parth-bansal.com:5000"
 
 @app.route('/')
 def index():
@@ -43,13 +43,14 @@ def authorize():
   flow = google_auth_oauthlib.flow.Flow.from_client_secrets_file(
       CLIENT_SECRETS_FILE, scopes=SCOPES)
 
-  flow.redirect_uri = flask.url_for('oauth2callback', _external=True, _scheme="https")
+  flow.redirect_uri = flask.url_for('oauth2callback', _external=True, _scheme = "https") 
 
   authorization_url, state = flow.authorization_url(
       access_type='offline',
       include_granted_scopes='true')
   flask.session['state'] = state
 
+  print(authorization_url)
   return flask.redirect(authorization_url)
 
 
@@ -59,7 +60,7 @@ def oauth2callback():
 
   flow = google_auth_oauthlib.flow.Flow.from_client_secrets_file(
       CLIENT_SECRETS_FILE, scopes=SCOPES, state=state)
-  flow.redirect_uri = flask.url_for('oauth2callback', _external=True, _scheme="https")
+  flow.redirect_uri = flask.url_for('oauth2callback', _external=True, _scheme = "https")
 
   authorization_response = flask.request.url
   flow.fetch_token(authorization_response=authorization_response)
@@ -67,8 +68,12 @@ def oauth2callback():
   credentials = flow.credentials
   flask.session['credentials'] = credentials_to_dict(credentials)
 
-  return flask.redirect(flask.url_for('test_api_request', _scheme="https"))
+  return flask.redirect(flask.url_for('upload'),  _scheme = "https")
+  
 
+@app.route('/upload') 
+def upload():
+  return '<a href = "/test"> Upload Thumbnail </a>'
 
 @app.route('/revoke')
 def revoke():
@@ -107,19 +112,7 @@ def credentials_to_dict(credentials):
           'scopes': credentials.scopes}
 
 def print_index_table():
-  return ('<table>' +
-          '<tr><td><a href="/test">Test an API request</a></td>' +
-          '<td>Submit an API request and see a formatted JSON response. ' +
-          '    Go through the authorization flow if there are no stored ' +
-          '    credentials for the user.</td></tr>' +
-          '<tr><td><a href="/authorize">Test the auth flow directly</a></td>' +
-          '<td>Go directly to the authorization flow. If there are stored ' +
-          '    credentials, you still might not be prompted to reauthorize ' +
-          '    the application.</td></tr>' +
-          '<tr><td><a href="/revoke">Revoke current credentials</a></td>' +
-          '</tr>' +
-          '<tr><td><a href="/clear">Clear Flask session credentials</a></td>' +
-          '</tr></table>')
+  return ('<a href="/authorize"> Sign In </a>')
 
 
 if __name__ == '__main__':
