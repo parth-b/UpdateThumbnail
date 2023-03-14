@@ -3,16 +3,17 @@
 import os
 import flask
 import requests
-
 import google.oauth2.credentials
 import google_auth_oauthlib.flow
+
 from uploadThumbnial import upload_thumbnail
 
-CLIENT_SECRETS_FILE = "/Users/pb/projects/pyproj/client_secrets.json"
+CLIENT_SECRETS_FILE = "client_secrets.json"
 SCOPES = "https://www.googleapis.com/auth/youtube.force-ssl https://www.googleapis.com/auth/youtube.upload https://www.googleapis.com/auth/youtube"
 
 app = flask.Flask(__name__)
 app.secret_key = b'_5#'
+app.config["SERVER_NAME"] = "parth-bansal.com:5000"
 
 @app.route('/')
 def index():
@@ -42,7 +43,7 @@ def authorize():
   flow = google_auth_oauthlib.flow.Flow.from_client_secrets_file(
       CLIENT_SECRETS_FILE, scopes=SCOPES)
 
-  flow.redirect_uri = flask.url_for('oauth2callback', _external=True)
+  flow.redirect_uri = flask.url_for('oauth2callback', _external=True, _scheme="https")
 
   authorization_url, state = flow.authorization_url(
       access_type='offline',
@@ -58,7 +59,7 @@ def oauth2callback():
 
   flow = google_auth_oauthlib.flow.Flow.from_client_secrets_file(
       CLIENT_SECRETS_FILE, scopes=SCOPES, state=state)
-  flow.redirect_uri = flask.url_for('oauth2callback', _external=True)
+  flow.redirect_uri = flask.url_for('oauth2callback', _external=True, _scheme="https")
 
   authorization_response = flask.request.url
   flow.fetch_token(authorization_response=authorization_response)
@@ -66,7 +67,7 @@ def oauth2callback():
   credentials = flow.credentials
   flask.session['credentials'] = credentials_to_dict(credentials)
 
-  return flask.redirect(flask.url_for('test_api_request'))
+  return flask.redirect(flask.url_for('test_api_request', _scheme="https"))
 
 
 @app.route('/revoke')
@@ -123,5 +124,5 @@ def print_index_table():
 
 if __name__ == '__main__':
   os.environ['OAUTHLIB_INSECURE_TRANSPORT'] = '1'
-  app.run('localhost', 5000, debug=True)
+  app.run('0.0.0.0', 5000, debug=True)
   
